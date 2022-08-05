@@ -18,6 +18,7 @@ namespace Language_Translate_Tests
             Assert.That(translatedText, Is.EqualTo("mots d'essai"));
             Assert.Pass();
         }
+        [Test]
         public void Test_for_first_sentence_given()
         {
             LanguageTranslator languageTranslator = new LanguageTranslator();
@@ -30,7 +31,7 @@ namespace Language_Translate_Tests
             Assert.That(translatedText, Is.EqualTo("Farnborough International Airshow, événement mondial biennal sur le commerce de l’aérospatiale, de la défense et de l’espace \r\nqui présente les derniers avions commerciaux et militaires. Des constructeurs comme Airbus et Boeing \r\ndevraient exposer leurs produits et annoncer les nouvelles commandes * L’événement 2020 a eu lieu virtuellement après \r\nle spectacle physique a été annulé en raison de la pandémie de coronavirus (COVID-19)"));
             Assert.Pass();
         }
-
+        [Test]
         public void Test_for_second_sentence_given()
         {
             LanguageTranslator languageTranslator = new LanguageTranslator();
@@ -42,6 +43,7 @@ namespace Language_Translate_Tests
             Assert.That(translatedText, Is.EqualTo(@"Statistiques du marché du travail : diffusion nationale intégrée, y compris les données les plus récentes sur l’emploi, l’activité économique, l’inactivité économique, le chômage, le nombre de prestataires, les gains moyens, la productivité, les coûts salariaux unitaires, les postes vacants et les conflits du travail"));
             Assert.Pass();
         }
+        [Test]
         public void Test_for_third_sentence_given()
         {
             LanguageTranslator languageTranslator = new LanguageTranslator();
