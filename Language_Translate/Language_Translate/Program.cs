@@ -1,76 +1,61 @@
 ﻿
-using Microsoft.Extensions.Configuration.Json;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using System.Text;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Language_Translate
 {
-    public class LanguageTranslator
+    public static class LanguageTranslator
     {
-        public static ILoggerFactory LoggerFactory;
-        public static IConfigurationRoot Configuration;
         public static void Main(string[] args)
         {
-            LanguageTranslator languageTranslator = new LanguageTranslator();
+            var configuration = new ConfigurationBuilder()
+                .SetBasePath(Directory.GetCurrentDirectory())
+                .AddJsonFile("appsettings.json")
+                .AddJsonFile($"appsettings.{Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production"}.json", optional: true)
+                .AddEnvironmentVariables()
+                .Build();
+            using IHost host = Host.CreateDefaultBuilder(args)
+                .ConfigureServices((context, services) => 
+                {
+                    services.AddTransient<ILanguageTranslator, MicrosoftLanguageTranslator>();
+                    services.AddTransient<ILanguageTranslator, GoogleLanguageTranslator>();
+                })
+                .ConfigureLogging((_, logging) => {
+                    logging.ClearProviders();
+                    logging.AddSimpleConsole(options => options.IncludeScopes = true);
+                    logging.AddEventLog();
+                })
+                .Build();            
             string textToTranslate = string.Empty;
-            while(textToTranslate.ToLower() != "exit")
+            ILanguageTranslator languageTranslator = null;
+            if (args.Length > 0 && args[1].ToLower() == "microsoft")
+                languageTranslator = ActivatorUtilities.GetServiceOrCreateInstance<MicrosoftLanguageTranslator>(host.Services);
+            else if (args.Length > 0 && args[1].ToLower() == "google")
+                languageTranslator = ActivatorUtilities.GetServiceOrCreateInstance<GoogleLanguageTranslator>(host.Services);
+            else
+                languageTranslator = ActivatorUtilities.GetServiceOrCreateInstance<GoogleLanguageTranslator>(host.Services);
+            while (textToTranslate.ToLower() != "exit")
             {
-                textToTranslate= Console.ReadLine();
-                languageTranslator.TranslateTextRequest("en", "to", textToTranslate);
-                
+                textToTranslate = Console.ReadLine();
+                var translatedText = languageTranslator.TranslateTextRequest("en", "fr", textToTranslate).Result;
+                Console.WriteLine(translatedText);
+
             }//while
-
+            host.RunAsync();
         }
-        public LanguageTranslator()
+        static void BuildConfig(IConfigurationBuilder builder)
         {
-            var builder = new ConfigurationBuilder()
-                                            .SetBasePath(Directory.GetCurrentDirectory())
-                                            .AddJsonFile("appsettings.json");
-
-            Configuration = builder.Build();
-
+            builder.SetBasePath(Directory.GetCurrentDirectory())
+                .AddJsonFile("appsettings.json")
+                .AddJsonFile($"appsettings.{Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")??"Production"}.json",optional:true)
+                .AddEnvironmentVariables()
+                .Build();
         }
-        public async Task<string> TranslateTextRequest(string from, string to,  string inputText)
-        {
-            string resourceKey = Configuration["TranslatorKey"];
-            string endpoint = Configuration["TextTranslatorAPI"];
-            string region = Configuration["region"];
-            
-
-            object[] body = new object[] { new { Text = inputText } };
-            var requestBody = JsonConvert.SerializeObject(body);
-
-            using (var client = new HttpClient())
-            using (var request = new HttpRequestMessage())
-            {
-                // Build the request.
-                request.Method = HttpMethod.Post;
-                request.RequestUri = new Uri(string.Format(endpoint, from, to));
-                request.Content = new StringContent(requestBody, Encoding.UTF8, "application/json");
-                request.Headers.Add("Ocp-Apim-Subscription-Key", resourceKey);
-                request.Headers.Add("Ocp-Apim-Subscription-Region", region);
-
-                // Send the request and get response.
-                HttpResponseMessage response = await client.SendAsync(request).ConfigureAwait(false);
-                // Read response as a string.
-                string result = await response.Content.ReadAsStringAsync();
-                TranslationResult[] deserializedOutput = JsonConvert.DeserializeObject<TranslationResult[]>(result);
-                // Iterate over the deserialized results.
-                //foreach (TranslationResult o in deserializedOutput)
-                //{
-                // Print the detected input language and confidence score.
-                //Console.WriteLine("Detected input language: {0}\nConfidence score: {1}\n", o.DetectedLanguage.Language, o.DetectedLanguage.Score);
-                // Iterate over the results and print each translation.
-                //foreach (Translation t in o.Translations)
-                //{
-                //    Console.WriteLine("Translated to {0}: {1}", t.To, t.Text);
-                //}                   
-                //}
-                return deserializedOutput == null?null: deserializedOutput[0].Translations[0].Text;
-                
-            }
-        }
+       
+        
     }
 }
